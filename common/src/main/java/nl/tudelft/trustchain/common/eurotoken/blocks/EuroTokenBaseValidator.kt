@@ -25,18 +25,32 @@ open class EuroTokenBaseValidator(val transactionRepository: TransactionReposito
 
     private fun verifyListedBalance(block: TrustChainBlock, database: TrustChainStore) {
         assertBalanceExists(block)
-        val blockBefore = getBlockBeforeOrRaise(block, database)
-        val balanceBefore = if (blockBefore != null) getBalanceForBlock(blockBefore, database) else 0L
-        balanceBefore ?: throw PartialPrevious("Missing previous block")
-        val balanceChange = getBalanceChangeForBlock(block)
-        if ((block.transaction[TransactionRepository.KEY_BALANCE] as Long) < 0L) {
-            throw InsufficientBalance("block balance (${block.sequenceNumber}): ${block.transaction[TransactionRepository.KEY_BALANCE]} is negative")
+
+        // is a transfer with unverified money allowed?
+        val unverified = block.transaction[TransactionRepository.KEY_UNVERIFIED_ALLOWED] as Boolean
+
+        // TODO: If unverified == true, then KEY_BALANCE will not be calculated and verified
+        if (unverified) {
+            if ((block.transaction[TransactionRepository.KEY_PREV_VERIFIED_BALANCE] as Long) +
+                (block.transaction[TransactionRepository.KEY_PREV_VERIFIED_BALANCE] as Long) <
+                (block.transaction[TransactionRepository.KEY_AMOUNT] as Long)) {
+                throw InsufficientBalance("block balance (${block.sequenceNumber}): Too low")
+            }
+            return // Valid
+        } else {
+            val blockBefore = getBlockBeforeOrRaise(block, database)
+            val balanceBefore = if (blockBefore != null) getBalanceForBlock(blockBefore, database) else 0L
+            balanceBefore ?: throw PartialPrevious("Missing previous block")
+            val balanceChange = getBalanceChangeForBlock(block)
+            if ((block.transaction[TransactionRepository.KEY_BALANCE] as Long) < 0L) {
+                throw InsufficientBalance("block balance (${block.sequenceNumber}): ${block.transaction[TransactionRepository.KEY_BALANCE]} is negative")
+            }
+            if (block.transaction[TransactionRepository.KEY_BALANCE] != balanceBefore + balanceChange) {
+                Log.w("EuroTokenBlock", "Invalid balance")
+                throw InvalidBalance("block balance (${block.sequenceNumber}): ${block.transaction[TransactionRepository.KEY_BALANCE]} does not match calculated balance: $balanceBefore + $balanceChange ")
+            }
+            return // Valid
         }
-        if (block.transaction[TransactionRepository.KEY_BALANCE] != balanceBefore + balanceChange) {
-            Log.w("EuroTokenBlock", "Invalid balance")
-            throw InvalidBalance("block balance (${block.sequenceNumber}): ${block.transaction[TransactionRepository.KEY_BALANCE]} does not match calculated balance: $balanceBefore + $balanceChange ")
-        }
-        return // Valid
     }
 
     fun assertBalanceExists(block: TrustChainBlock) {
@@ -61,6 +75,12 @@ open class EuroTokenBaseValidator(val transactionRepository: TransactionReposito
     }
 
     private fun verifyBalanceAvailable(block: TrustChainBlock, database: TrustChainStore) {
+
+        // TODO: Perform this verification also when unverified money is allowed
+        if (block.transaction[TransactionRepository.KEY_UNVERIFIED_ALLOWED] as Boolean) {
+            return // Valid
+        }
+
         val balance = getVerifiedBalanceForBlock(block, database) ?: throw PartialPrevious("Missing previous blocks")
         if (balance < 0) {
             // the validated balance is not enough, but it could be the case we're missing some

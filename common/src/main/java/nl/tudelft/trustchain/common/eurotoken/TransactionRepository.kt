@@ -254,18 +254,32 @@ class TransactionRepository(
         return true
     }
 
-    fun sendTransferProposalSync(recipient: ByteArray, amount: Long): TrustChainBlock? {
-        if (getMyVerifiedBalance() - amount < 0) {
-            return null
+    fun sendTransferProposalSync(recipient: ByteArray, amount: Long,
+                                 unverified: Boolean = true): TrustChainBlock? {
+
+        // if transferring unverified money is allowed
+        if (unverified) {
+            if (getMyBalance() - amount < 0) {
+                return null
+            }
+        } else {
+            if (getMyVerifiedBalance() - amount < 0) {
+                return null
+            }
         }
+
+        // creating the transaction that will be contained in proposal block
         val transaction = mapOf(
             KEY_AMOUNT to BigInteger.valueOf(amount),
-            KEY_BALANCE to (BigInteger.valueOf(getMyBalance() - amount).toLong())
+            KEY_BALANCE to (BigInteger.valueOf(getMyBalance() - amount).toLong()),
+            KEY_PREV_VERIFIED_BALANCE to (BigInteger.valueOf(getMyVerifiedBalance())),
+            KEY_PREV_UNVERIFIED_BALANCE to (
+                BigInteger.valueOf(getMyBalance() - getMyVerifiedBalance())),
+            KEY_UNVERIFIED_ALLOWED to unverified
         )
-        return trustChainCommunity.createProposalBlock(
-            BLOCK_TYPE_TRANSFER, transaction,
-            recipient
-        )
+
+        // return the proposal block
+        return trustChainCommunity.createProposalBlock(BLOCK_TYPE_TRANSFER, transaction, recipient)
     }
 
     fun verifyBalance() {
@@ -1099,5 +1113,10 @@ class TransactionRepository(
         const val KEY_TRANSACTION_HASH = "transaction_hash"
         const val KEY_PAYMENT_ID = "payment_id"
         const val KEY_IBAN = "iban"
+
+        // fields of a TrustChainTransaction that specify the balances of the sender before transfer
+        const val KEY_PREV_VERIFIED_BALANCE = "prev_verified_balance"
+        const val KEY_PREV_UNVERIFIED_BALANCE = "prev_unverified_balance"
+        const val KEY_UNVERIFIED_ALLOWED = "unverified_allowed"
     }
 }
