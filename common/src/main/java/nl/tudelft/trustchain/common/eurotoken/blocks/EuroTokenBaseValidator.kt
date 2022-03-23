@@ -31,11 +31,11 @@ open class EuroTokenBaseValidator(val transactionRepository: TransactionReposito
 
         // TODO: If unverified == true, then KEY_BALANCE will not be calculated and verified
         if (unverified) {
-            if ((block.transaction[TransactionRepository.KEY_PREV_VERIFIED_BALANCE] as Long) +
-                (block.transaction[TransactionRepository.KEY_PREV_VERIFIED_BALANCE] as Long) <
-                (block.transaction[TransactionRepository.KEY_AMOUNT] as Long)) {
-                throw InsufficientBalance("block balance (${block.sequenceNumber}): Too low")
-            }
+//            if ((block.transaction[TransactionRepository.KEY_PREV_VERIFIED_BALANCE]) +
+//                (block.transaction[TransactionRepository.KEY_PREV_UNVERIFIED_BALANCE]) <
+//                (block.transaction[TransactionRepository.KEY_AMOUNT])) {
+//                throw InsufficientBalance("block balance (${block.sequenceNumber}): Too low")
+//            }
             return // Valid
         } else {
             val blockBefore = getBlockBeforeOrRaise(block, database)

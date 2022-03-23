@@ -272,14 +272,17 @@ class TransactionRepository(
         val transaction = mapOf(
             KEY_AMOUNT to BigInteger.valueOf(amount),
             KEY_BALANCE to (BigInteger.valueOf(getMyBalance() - amount).toLong()),
-            KEY_PREV_VERIFIED_BALANCE to (BigInteger.valueOf(getMyVerifiedBalance())),
+            KEY_PREV_VERIFIED_BALANCE to (BigInteger.valueOf(getMyVerifiedBalance()).toLong()),
             KEY_PREV_UNVERIFIED_BALANCE to (
-                BigInteger.valueOf(getMyBalance() - getMyVerifiedBalance())),
+                BigInteger.valueOf(getMyBalance() - getMyVerifiedBalance()).toLong()),
             KEY_UNVERIFIED_ALLOWED to unverified
         )
+        Log.d("=====Transaction", transaction.toString())
 
         // return the proposal block
-        return trustChainCommunity.createProposalBlock(BLOCK_TYPE_TRANSFER, transaction, recipient)
+        val block = trustChainCommunity.createProposalBlock(BLOCK_TYPE_TRANSFER, transaction, recipient)
+        Log.d("=====Block", block.toString())
+        return block
     }
 
     fun verifyBalance() {
